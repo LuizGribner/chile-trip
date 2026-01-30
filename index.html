@@ -85,8 +85,12 @@
     <script type="text/babel">
         const { useState, useEffect } = React;
 
+        const WEBHOOK_URL = 'https://n8n.syncrosolutions.com.br/webhook/chile-app';
+
         function App() {
             const [activeTab, setActiveTab] = useState('itinerary');
+            const [isLoading, setIsLoading] = useState(true);
+            const [isSaving, setIsSaving] = useState(false);
             const [tripData, setTripData] = useState({
                 itinerary: [],
                 places: [],
@@ -101,18 +105,60 @@
                 }
             });
 
-            // Load data from localStorage
+            // Load data from n8n on mount
             useEffect(() => {
-                const saved = localStorage.getItem('chileTrip');
-                if (saved) {
-                    setTripData(JSON.parse(saved));
-                }
+                loadDataFromN8n();
             }, []);
 
-            // Save data to localStorage
+            // Save data to n8n whenever tripData changes
             useEffect(() => {
-                localStorage.setItem('chileTrip', JSON.stringify(tripData));
+                if (!isLoading) {
+                    saveDataToN8n();
+                }
             }, [tripData]);
+
+            const loadDataFromN8n = async () => {
+                try {
+                    const response = await fetch(WEBHOOK_URL, {
+                        method: 'GET',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        }
+                    });
+                    
+                    if (response.ok) {
+                        const data = await response.json();
+                        // Se tiver dados, usa eles, senão mantém o estado inicial
+                        if (data && Object.keys(data).length > 0) {
+                            setTripData(prevData => ({
+                                ...prevData,
+                                ...data
+                            }));
+                        }
+                    }
+                } catch (error) {
+                    console.error('Erro ao carregar dados:', error);
+                } finally {
+                    setIsLoading(false);
+                }
+            };
+
+            const saveDataToN8n = async () => {
+                setIsSaving(true);
+                try {
+                    await fetch(WEBHOOK_URL, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify(tripData)
+                    });
+                } catch (error) {
+                    console.error('Erro ao salvar dados:', error);
+                } finally {
+                    setIsSaving(false);
+                }
+            };
 
             const tabs = [
                 { id: 'itinerary', label: 'Roteiro', icon: '📅' },
@@ -125,18 +171,34 @@
 
             return (
                 <div className="min-h-screen pb-20">
-                    {/* Header */}
-                    <div className="gradient-bg text-white p-6 pb-8 rounded-b-3xl shadow-xl">
-                        <div className="text-center">
-                            <h1 className="text-3xl font-bold mb-2">Chile 2026🇨🇱</h1>
-                            <p className="text-red-100">07 de Junho - Nossa Aventura</p>
-                            <div className="mt-4 bg-white/20 rounded-full px-4 py-2 inline-block">
-                                <span className="text-sm font-semibold">
-                                    {Math.ceil((new Date('2026-06-07') - new Date()) / (1000 * 60 * 60 * 24))} dias para a viagem!
-                                </span>
+                    {isLoading ? (
+                        <div className="flex items-center justify-center min-h-screen">
+                            <div className="text-center">
+                                <div className="text-6xl mb-4">🇨🇱</div>
+                                <p className="text-gray-600">Carregando dados...</p>
                             </div>
                         </div>
-                    </div>
+                    ) : (
+                        <>
+                            {/* Header */}
+                            <div className="gradient-bg text-white p-6 pb-8 rounded-b-3xl shadow-xl">
+                                <div className="text-center">
+                                    <div className="flex items-center justify-center gap-2 mb-2">
+                                        <h1 className="text-3xl font-bold">Chile 2026 🇨🇱</h1>
+                                        {isSaving && (
+                                            <span className="text-xs bg-white/20 px-2 py-1 rounded-full animate-pulse">
+                                                💾
+                                            </span>
+                                        )}
+                                    </div>
+                                    <p className="text-red-100">07 de Junho - Nossa Aventura</p>
+                                    <div className="mt-4 bg-white/20 rounded-full px-4 py-2 inline-block">
+                                        <span className="text-sm font-semibold">
+                                            {Math.ceil((new Date('2026-06-07') - new Date()) / (1000 * 60 * 60 * 24))} dias para a viagem!
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
 
                     {/* Content */}
                     <div className="px-4 -mt-4">
@@ -167,6 +229,8 @@
                             ))}
                         </div>
                     </div>
+                    </>
+                )}
                 </div>
             );
         }
