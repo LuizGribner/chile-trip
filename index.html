@@ -235,6 +235,7 @@
                 { id: 'budget', label: 'Gastos', icon: '💰' },
                 { id: 'packing', label: 'Mala', icon: '🎒' },
                 { id: 'restaurants', label: 'Comer', icon: '🍽️' },
+                { id: 'exchange', label: 'Câmbio', icon: '💵' },
                 { id: 'info', label: 'Info', icon: '✈️' }
             ];
 
@@ -277,6 +278,7 @@
                             {activeTab === 'budget' && <BudgetTab tripData={tripData} createItem={createItem} deleteItem={deleteItem} />}
                             {activeTab === 'packing' && <PackingTab tripData={tripData} createItem={createItem} updateItem={updateItem} deleteItem={deleteItem} />}
                             {activeTab === 'restaurants' && <RestaurantsTab tripData={tripData} createItem={createItem} deleteItem={deleteItem} />}
+                            {activeTab === 'exchange' && <ExchangeTab />}
                             {activeTab === 'info' && <InfoTab tripData={tripData} updateItem={updateItem} />}
                         </div>
                     </div>
@@ -875,6 +877,199 @@
                             <p className="text-center text-gray-400 py-8">Nenhum restaurante adicionado ainda</p>
                         )}
                     </div>
+                </div>
+            );
+        }
+
+        function ExchangeTab() {
+            const [usdAmount, setUsdAmount] = useState('');
+            const [clpAmount, setClpAmount] = useState('');
+            const [exchangeRate, setExchangeRate] = useState(null);
+            const [lastUpdate, setLastUpdate] = useState(null);
+            const [isLoading, setIsLoading] = useState(true);
+            const [quickAmounts] = useState([10, 20, 50, 100, 200, 500, 1000]);
+
+            // Busca taxa de câmbio ao carregar
+            useEffect(() => {
+                fetchExchangeRate();
+            }, []);
+
+            const fetchExchangeRate = async () => {
+                setIsLoading(true);
+                try {
+                    // Usando API gratuita exchangerate-api.com
+                    const response = await fetch('https://api.exchangerate-api.com/v4/latest/USD');
+                    
+                    if (response.ok) {
+                        const data = await response.json();
+                        const rate = data.rates.CLP;
+                        setExchangeRate(rate);
+                        setLastUpdate(new Date(data.date));
+                    }
+                } catch (error) {
+                    console.error('Erro ao buscar taxa de câmbio:', error);
+                    // Fallback para taxa aproximada caso API falhe
+                    setExchangeRate(950);
+                } finally {
+                    setIsLoading(false);
+                }
+            };
+
+            const convertUsdToClp = (usd) => {
+                if (!exchangeRate) return;
+                const clp = parseFloat(usd) * exchangeRate;
+                setClpAmount(clp.toFixed(2));
+            };
+
+            const convertClpToUsd = (clp) => {
+                if (!exchangeRate) return;
+                const usd = parseFloat(clp) / exchangeRate;
+                setUsdAmount(usd.toFixed(2));
+            };
+
+            const handleUsdChange = (value) => {
+                setUsdAmount(value);
+                if (value && !isNaN(value)) {
+                    convertUsdToClp(value);
+                } else {
+                    setClpAmount('');
+                }
+            };
+
+            const handleClpChange = (value) => {
+                setClpAmount(value);
+                if (value && !isNaN(value)) {
+                    convertClpToUsd(value);
+                } else {
+                    setUsdAmount('');
+                }
+            };
+
+            const setQuickAmount = (amount) => {
+                setUsdAmount(amount.toString());
+                convertUsdToClp(amount);
+            };
+
+            const formatNumber = (num) => {
+                return new Intl.NumberFormat('pt-BR').format(num);
+            };
+
+            return (
+                <div className="space-y-4">
+                    <h2 className="text-2xl font-bold text-gray-800 mb-4">Conversor de Câmbio</h2>
+                    
+                    {isLoading ? (
+                        <div className="text-center py-8">
+                            <p className="text-gray-600">Buscando taxa atual...</p>
+                        </div>
+                    ) : (
+                        <>
+                            {/* Taxa atual */}
+                            <div className="bg-gradient-to-r from-green-500 to-emerald-600 text-white p-6 rounded-xl shadow-lg">
+                                <div className="flex justify-between items-center">
+                                    <div>
+                                        <p className="text-sm opacity-90 mb-1">Taxa Atual</p>
+                                        <p className="text-3xl font-bold">1 USD = {exchangeRate ? formatNumber(exchangeRate.toFixed(2)) : '...'} CLP</p>
+                                    </div>
+                                    <button
+                                        onClick={fetchExchangeRate}
+                                        className="bg-white/20 hover:bg-white/30 px-4 py-2 rounded-lg transition-colors"
+                                    >
+                                        🔄
+                                    </button>
+                                </div>
+                                {lastUpdate && (
+                                    <p className="text-xs opacity-75 mt-2">
+                                        Atualizado: {lastUpdate.toLocaleDateString('pt-BR')} às {lastUpdate.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                                    </p>
+                                )}
+                            </div>
+
+                            {/* Conversores */}
+                            <div className="space-y-4">
+                                {/* USD → CLP */}
+                                <div className="bg-blue-50 p-4 rounded-xl border-2 border-blue-200">
+                                    <label className="text-sm font-semibold text-blue-900 block mb-2">Dólares (USD)</label>
+                                    <div className="relative">
+                                        <span className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-500 font-semibold">$</span>
+                                        <input
+                                            type="number"
+                                            placeholder="0.00"
+                                            value={usdAmount}
+                                            onChange={(e) => handleUsdChange(e.target.value)}
+                                            className="w-full pl-8 pr-4 py-3 border-2 border-blue-300 rounded-lg focus:outline-none focus:border-blue-600 text-lg font-semibold"
+                                        />
+                                    </div>
+                                </div>
+
+                                {/* Seta */}
+                                <div className="flex justify-center">
+                                    <div className="bg-gray-200 rounded-full p-2">
+                                        <span className="text-2xl">⬇️</span>
+                                    </div>
+                                </div>
+
+                                {/* CLP */}
+                                <div className="bg-red-50 p-4 rounded-xl border-2 border-red-200">
+                                    <label className="text-sm font-semibold text-red-900 block mb-2">Pesos Chilenos (CLP)</label>
+                                    <div className="relative">
+                                        <span className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-500 font-semibold">$</span>
+                                        <input
+                                            type="number"
+                                            placeholder="0.00"
+                                            value={clpAmount}
+                                            onChange={(e) => handleClpChange(e.target.value)}
+                                            className="w-full pl-8 pr-4 py-3 border-2 border-red-300 rounded-lg focus:outline-none focus:border-red-600 text-lg font-semibold"
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Valores rápidos */}
+                            <div className="mt-6">
+                                <h3 className="text-sm font-semibold text-gray-700 mb-3">Valores Rápidos (USD):</h3>
+                                <div className="grid grid-cols-4 gap-2">
+                                    {quickAmounts.map(amount => (
+                                        <button
+                                            key={amount}
+                                            onClick={() => setQuickAmount(amount)}
+                                            className="bg-gradient-to-r from-blue-500 to-blue-600 text-white py-3 rounded-lg font-semibold hover:from-blue-600 hover:to-blue-700 transition-all shadow-md"
+                                        >
+                                            ${amount}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+
+                            {/* Tabela de referência */}
+                            <div className="mt-6 bg-white p-4 rounded-xl border-2 border-gray-200">
+                                <h3 className="font-semibold text-gray-700 mb-3">Tabela de Referência:</h3>
+                                <div className="space-y-2">
+                                    {[10, 50, 100, 500, 1000].map(amount => (
+                                        <div key={amount} className="flex justify-between items-center py-2 border-b border-gray-100 last:border-b-0">
+                                            <span className="text-gray-700 font-medium">${amount} USD</span>
+                                            <span className="text-gray-900 font-bold">
+                                                ${formatNumber((amount * exchangeRate).toFixed(0))} CLP
+                                            </span>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+
+                            {/* Dicas */}
+                            <div className="bg-yellow-50 p-4 rounded-xl border-2 border-yellow-200">
+                                <h3 className="font-bold text-yellow-900 mb-2 flex items-center gap-2">
+                                    💡 Dicas de Câmbio
+                                </h3>
+                                <ul className="space-y-1 text-sm text-gray-700">
+                                    <li>• Evite trocar no aeroporto (taxa ruim)</li>
+                                    <li>• Use cartão de crédito sempre que possível</li>
+                                    <li>• ATMs têm taxa melhor que casas de câmbio</li>
+                                    <li>• Leve alguns dólares em espécie de emergência</li>
+                                </ul>
+                            </div>
+                        </>
+                    )}
                 </div>
             );
         }
