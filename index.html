@@ -383,13 +383,63 @@
         }
 
         function PlacesTab({ tripData, createItem, deleteItem }) {
-            const [newPlace, setNewPlace] = useState({ name: '', address: '', notes: '', category: 'tourist' });
+            const [newPlace, setNewPlace] = useState({ name: '', address: '', notes: '', category: 'tourist', lat: null, lng: null });
+            const [addressSuggestions, setAddressSuggestions] = useState([]);
+            const [showSuggestions, setShowSuggestions] = useState(false);
+            const addressInputRef = React.useRef(null);
 
             const categories = {
                 tourist: '🏛️ Turístico',
                 nature: '🏔️ Natureza',
                 shopping: '🛍️ Compras',
                 nightlife: '🌃 Vida Noturna'
+            };
+
+            // Debounce para não fazer muitas chamadas na API
+            const searchPlaces = React.useCallback(
+                _.debounce(async (query) => {
+                    if (!query || query.length < 3) {
+                        setAddressSuggestions([]);
+                        return;
+                    }
+
+                    try {
+                        // Usando Nominatim (OpenStreetMap) - gratuito e sem API key
+                        const response = await fetch(
+                            `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query + ', Chile')}&format=json&limit=5&addressdetails=1`,
+                            {
+                                headers: {
+                                    'Accept': 'application/json'
+                                }
+                            }
+                        );
+                        
+                        if (response.ok) {
+                            const data = await response.json();
+                            setAddressSuggestions(data);
+                            setShowSuggestions(true);
+                        }
+                    } catch (error) {
+                        console.error('Erro ao buscar endereços:', error);
+                    }
+                }, 500),
+                []
+            );
+
+            const handleAddressChange = (value) => {
+                setNewPlace({...newPlace, address: value, lat: null, lng: null});
+                searchPlaces(value);
+            };
+
+            const selectSuggestion = (suggestion) => {
+                setNewPlace({
+                    ...newPlace, 
+                    address: suggestion.display_name,
+                    lat: parseFloat(suggestion.lat),
+                    lng: parseFloat(suggestion.lon)
+                });
+                setShowSuggestions(false);
+                setAddressSuggestions([]);
             };
 
             const addPlace = () => {
@@ -399,12 +449,25 @@
                         id: Date.now() 
                     };
                     createItem('places', placeToAdd);
-                    setNewPlace({ name: '', address: '', notes: '', category: 'tourist' });
+                    setNewPlace({ name: '', address: '', notes: '', category: 'tourist', lat: null, lng: null });
+                    setAddressSuggestions([]);
                 }
             };
 
             const handleDelete = (id) => {
                 deleteItem('places', id);
+            };
+
+            const openInMaps = (place) => {
+                if (place.lat && place.lng) {
+                    // Abre no app de mapas do celular
+                    const url = `https://www.google.com/maps/search/?api=1&query=${place.lat},${place.lng}`;
+                    window.open(url, '_blank');
+                } else if (place.address) {
+                    // Fallback: busca pelo endereço
+                    const url = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(place.address)}`;
+                    window.open(url, '_blank');
+                }
             };
 
             return (
@@ -419,13 +482,31 @@
                             onChange={(e) => setNewPlace({...newPlace, name: e.target.value})}
                             className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl input-field focus:outline-none focus:border-red-600"
                         />
-                        <input
-                            type="text"
-                            placeholder="Endereço (opcional)"
-                            value={newPlace.address}
-                            onChange={(e) => setNewPlace({...newPlace, address: e.target.value})}
-                            className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl input-field focus:outline-none focus:border-red-600"
-                        />
+                        <div className="relative">
+                            <input
+                                ref={addressInputRef}
+                                type="text"
+                                placeholder="Endereço (comece a digitar...)"
+                                value={newPlace.address}
+                                onChange={(e) => handleAddressChange(e.target.value)}
+                                onFocus={() => addressSuggestions.length > 0 && setShowSuggestions(true)}
+                                className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl input-field focus:outline-none focus:border-red-600"
+                            />
+                            {showSuggestions && addressSuggestions.length > 0 && (
+                                <div className="absolute z-10 w-full mt-1 bg-white border-2 border-gray-200 rounded-xl shadow-lg max-h-60 overflow-y-auto">
+                                    {addressSuggestions.map((suggestion, index) => (
+                                        <button
+                                            key={index}
+                                            type="button"
+                                            onClick={() => selectSuggestion(suggestion)}
+                                            className="w-full text-left px-4 py-3 hover:bg-red-50 border-b border-gray-100 last:border-b-0 transition-colors"
+                                        >
+                                            <p className="font-medium text-gray-800 text-sm">{suggestion.display_name}</p>
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
                         <select
                             value={newPlace.category}
                             onChange={(e) => setNewPlace({...newPlace, category: e.target.value})}
@@ -459,7 +540,15 @@
                                             <h3 className="text-lg font-bold text-gray-800">{place.name}</h3>
                                         </div>
                                         {place.address && (
-                                            <p className="text-sm text-gray-500">📍 {place.address}</p>
+                                            <div className="flex items-center gap-2 mt-1">
+                                                <p className="text-sm text-gray-500 flex-1">📍 {place.address}</p>
+                                                <button
+                                                    onClick={() => openInMaps(place)}
+                                                    className="bg-blue-500 text-white px-3 py-1 rounded-lg text-xs font-semibold hover:bg-blue-600 transition-colors flex items-center gap-1"
+                                                >
+                                                    🗺️ Abrir
+                                                </button>
+                                            </div>
                                         )}
                                     </div>
                                     <button
@@ -903,6 +992,7 @@
 
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/lodash@4.17.21/lodash.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 </body>
 </html>
