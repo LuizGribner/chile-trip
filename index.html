@@ -85,7 +85,13 @@
     <script type="text/babel">
         const { useState, useEffect } = React;
 
-        const WEBHOOK_URL = 'https://aelliott.app.n8n.cloud/webhook/chile-app';
+        const WEBHOOK_BASE = 'https://aelliott.app.n8n.cloud/webhook';
+        const WEBHOOKS = {
+            GET: `${WEBHOOK_BASE}/chile-app-get`,
+            CREATE: `${WEBHOOK_BASE}/chile-app-create`,
+            UPDATE: `${WEBHOOK_BASE}/chile-app-update`,
+            DELETE: `${WEBHOOK_BASE}/chile-app-delete`
+        };
 
         function App() {
             const [activeTab, setActiveTab] = useState('itinerary');
@@ -110,16 +116,9 @@
                 loadDataFromN8n();
             }, []);
 
-            // Save data to n8n whenever tripData changes
-            useEffect(() => {
-                if (!isLoading) {
-                    saveDataToN8n();
-                }
-            }, [tripData]);
-
             const loadDataFromN8n = async () => {
                 try {
-                    const response = await fetch(WEBHOOK_URL, {
+                    const response = await fetch(WEBHOOKS.GET, {
                         method: 'GET',
                         headers: {
                             'Content-Type': 'application/json'
@@ -128,12 +127,8 @@
                     
                     if (response.ok) {
                         const data = await response.json();
-                        // Se tiver dados, usa eles, senão mantém o estado inicial
                         if (data && Object.keys(data).length > 0) {
-                            setTripData(prevData => ({
-                                ...prevData,
-                                ...data
-                            }));
+                            setTripData(data);
                         }
                     }
                 } catch (error) {
@@ -143,18 +138,92 @@
                 }
             };
 
-            const saveDataToN8n = async () => {
+            const createItem = async (category, item) => {
                 setIsSaving(true);
                 try {
-                    await fetch(WEBHOOK_URL, {
+                    const response = await fetch(WEBHOOKS.CREATE, {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json'
                         },
-                        body: JSON.stringify(tripData)
+                        body: JSON.stringify({
+                            category,
+                            item
+                        })
+                    });
+                    
+                    if (response.ok) {
+                        const result = await response.json();
+                        // Atualiza o estado local com o item criado
+                        setTripData(prev => ({
+                            ...prev,
+                            [category]: Array.isArray(prev[category]) 
+                                ? [...prev[category], result.item]
+                                : result.item
+                        }));
+                    }
+                } catch (error) {
+                    console.error('Erro ao criar item:', error);
+                } finally {
+                    setIsSaving(false);
+                }
+            };
+
+            const updateItem = async (category, itemId, updatedItem) => {
+                setIsSaving(true);
+                try {
+                    await fetch(WEBHOOKS.UPDATE, {
+                        method: 'PUT',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            category,
+                            itemId,
+                            item: updatedItem
+                        })
+                    });
+                    
+                    // Atualiza o estado local
+                    setTripData(prev => {
+                        if (category === 'flights') {
+                            return { ...prev, flights: updatedItem };
+                        }
+                        return {
+                            ...prev,
+                            [category]: prev[category].map(item => 
+                                item.id === itemId ? updatedItem : item
+                            )
+                        };
                     });
                 } catch (error) {
-                    console.error('Erro ao salvar dados:', error);
+                    console.error('Erro ao atualizar item:', error);
+                } finally {
+                    setIsSaving(false);
+                }
+            };
+
+            const deleteItem = async (category, itemId) => {
+                setIsSaving(true);
+                try {
+                    await fetch(WEBHOOKS.DELETE, {
+                        method: 'DELETE',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            category,
+                            itemId
+                        })
+                    });
+                    
+                    // Atualiza o estado local
+                    setTripData(prev => ({
+                        ...prev,
+                        [category]: prev[category].filter(item => item.id !== itemId)
+                    }));
+                } catch (error) {
+                    console.error('Erro ao deletar item:', error);
                 } finally {
                     setIsSaving(false);
                 }
@@ -203,12 +272,12 @@
                     {/* Content */}
                     <div className="px-4 -mt-4">
                         <div className="glass rounded-2xl shadow-xl p-4 slide-in">
-                            {activeTab === 'itinerary' && <ItineraryTab tripData={tripData} setTripData={setTripData} />}
-                            {activeTab === 'places' && <PlacesTab tripData={tripData} setTripData={setTripData} />}
-                            {activeTab === 'budget' && <BudgetTab tripData={tripData} setTripData={setTripData} />}
-                            {activeTab === 'packing' && <PackingTab tripData={tripData} setTripData={setTripData} />}
-                            {activeTab === 'restaurants' && <RestaurantsTab tripData={tripData} setTripData={setTripData} />}
-                            {activeTab === 'info' && <InfoTab tripData={tripData} setTripData={setTripData} />}
+                            {activeTab === 'itinerary' && <ItineraryTab tripData={tripData} createItem={createItem} deleteItem={deleteItem} />}
+                            {activeTab === 'places' && <PlacesTab tripData={tripData} createItem={createItem} deleteItem={deleteItem} />}
+                            {activeTab === 'budget' && <BudgetTab tripData={tripData} createItem={createItem} deleteItem={deleteItem} />}
+                            {activeTab === 'packing' && <PackingTab tripData={tripData} createItem={createItem} updateItem={updateItem} deleteItem={deleteItem} />}
+                            {activeTab === 'restaurants' && <RestaurantsTab tripData={tripData} createItem={createItem} deleteItem={deleteItem} />}
+                            {activeTab === 'info' && <InfoTab tripData={tripData} updateItem={updateItem} />}
                         </div>
                     </div>
 
@@ -235,24 +304,22 @@
             );
         }
 
-        function ItineraryTab({ tripData, setTripData }) {
+        function ItineraryTab({ tripData, createItem, deleteItem }) {
             const [newDay, setNewDay] = useState({ date: '', title: '', activities: '' });
 
             const addDay = () => {
                 if (newDay.date && newDay.title) {
-                    setTripData(prev => ({
-                        ...prev,
-                        itinerary: [...prev.itinerary, { ...newDay, id: Date.now() }].sort((a, b) => new Date(a.date) - new Date(b.date))
-                    }));
+                    const dayToAdd = { 
+                        ...newDay, 
+                        id: Date.now() 
+                    };
+                    createItem('itinerary', dayToAdd);
                     setNewDay({ date: '', title: '', activities: '' });
                 }
             };
 
-            const deleteDay = (id) => {
-                setTripData(prev => ({
-                    ...prev,
-                    itinerary: prev.itinerary.filter(day => day.id !== id)
-                }));
+            const handleDelete = (id) => {
+                deleteItem('itinerary', id);
             };
 
             return (
@@ -298,7 +365,7 @@
                                         <h3 className="text-lg font-bold text-gray-800">{day.title}</h3>
                                     </div>
                                     <button
-                                        onClick={() => deleteDay(day.id)}
+                                        onClick={() => handleDelete(day.id)}
                                         className="text-red-600 hover:text-red-800 text-xl"
                                     >
                                         🗑️
@@ -315,7 +382,7 @@
             );
         }
 
-        function PlacesTab({ tripData, setTripData }) {
+        function PlacesTab({ tripData, createItem, deleteItem }) {
             const [newPlace, setNewPlace] = useState({ name: '', address: '', notes: '', category: 'tourist' });
 
             const categories = {
@@ -327,19 +394,17 @@
 
             const addPlace = () => {
                 if (newPlace.name) {
-                    setTripData(prev => ({
-                        ...prev,
-                        places: [...prev.places, { ...newPlace, id: Date.now() }]
-                    }));
+                    const placeToAdd = { 
+                        ...newPlace, 
+                        id: Date.now() 
+                    };
+                    createItem('places', placeToAdd);
                     setNewPlace({ name: '', address: '', notes: '', category: 'tourist' });
                 }
             };
 
-            const deletePlace = (id) => {
-                setTripData(prev => ({
-                    ...prev,
-                    places: prev.places.filter(place => place.id !== id)
-                }));
+            const handleDelete = (id) => {
+                deleteItem('places', id);
             };
 
             return (
@@ -398,7 +463,7 @@
                                         )}
                                     </div>
                                     <button
-                                        onClick={() => deletePlace(place.id)}
+                                        onClick={() => handleDelete(place.id)}
                                         className="text-red-600 hover:text-red-800 text-xl ml-2"
                                     >
                                         🗑️
@@ -417,7 +482,7 @@
             );
         }
 
-        function BudgetTab({ tripData, setTripData }) {
+        function BudgetTab({ tripData, createItem, deleteItem }) {
             const [newExpense, setNewExpense] = useState({ name: '', amount: '', category: 'accommodation' });
 
             const categories = {
@@ -431,19 +496,18 @@
 
             const addExpense = () => {
                 if (newExpense.name && newExpense.amount) {
-                    setTripData(prev => ({
-                        ...prev,
-                        budget: [...prev.budget, { ...newExpense, id: Date.now(), amount: parseFloat(newExpense.amount) }]
-                    }));
+                    const expenseToAdd = { 
+                        ...newExpense, 
+                        id: Date.now(), 
+                        amount: parseFloat(newExpense.amount) 
+                    };
+                    createItem('budget', expenseToAdd);
                     setNewExpense({ name: '', amount: '', category: 'accommodation' });
                 }
             };
 
-            const deleteExpense = (id) => {
-                setTripData(prev => ({
-                    ...prev,
-                    budget: prev.budget.filter(exp => exp.id !== id)
-                }));
+            const handleDelete = (id) => {
+                deleteItem('budget', id);
             };
 
             const total = tripData.budget.reduce((sum, exp) => sum + exp.amount, 0);
@@ -516,7 +580,7 @@
                                 <div className="flex items-center gap-3">
                                     <span className="font-bold text-gray-800">R$ {expense.amount.toFixed(2)}</span>
                                     <button
-                                        onClick={() => deleteExpense(expense.id)}
+                                        onClick={() => handleDelete(expense.id)}
                                         className="text-red-600 hover:text-red-800"
                                     >
                                         🗑️
@@ -532,33 +596,28 @@
             );
         }
 
-        function PackingTab({ tripData, setTripData }) {
+        function PackingTab({ tripData, createItem, updateItem, deleteItem }) {
             const [newItem, setNewItem] = useState('');
 
             const addItem = () => {
                 if (newItem.trim()) {
-                    setTripData(prev => ({
-                        ...prev,
-                        packing: [...prev.packing, { name: newItem, packed: false, id: Date.now() }]
-                    }));
+                    const itemToAdd = { 
+                        name: newItem, 
+                        packed: false, 
+                        id: Date.now() 
+                    };
+                    createItem('packing', itemToAdd);
                     setNewItem('');
                 }
             };
 
-            const togglePacked = (id) => {
-                setTripData(prev => ({
-                    ...prev,
-                    packing: prev.packing.map(item => 
-                        item.id === id ? { ...item, packed: !item.packed } : item
-                    )
-                }));
+            const togglePacked = (item) => {
+                const updatedItem = { ...item, packed: !item.packed };
+                updateItem('packing', item.id, updatedItem);
             };
 
-            const deleteItem = (id) => {
-                setTripData(prev => ({
-                    ...prev,
-                    packing: prev.packing.filter(item => item.id !== id)
-                }));
+            const handleDelete = (id) => {
+                deleteItem('packing', id);
             };
 
             const packed = tripData.packing.filter(item => item.packed).length;
@@ -615,14 +674,14 @@
                                 <input
                                     type="checkbox"
                                     checked={item.packed}
-                                    onChange={() => togglePacked(item.id)}
+                                    onChange={() => togglePacked(item)}
                                     className="checkbox-custom"
                                 />
                                 <span className={`flex-1 ${item.packed ? 'line-through text-gray-400' : 'text-gray-800'}`}>
                                     {item.name}
                                 </span>
                                 <button
-                                    onClick={() => deleteItem(item.id)}
+                                    onClick={() => handleDelete(item.id)}
                                     className="text-red-600 hover:text-red-800"
                                 >
                                     🗑️
@@ -637,24 +696,22 @@
             );
         }
 
-        function RestaurantsTab({ tripData, setTripData }) {
+        function RestaurantsTab({ tripData, createItem, deleteItem }) {
             const [newRestaurant, setNewRestaurant] = useState({ name: '', cuisine: '', notes: '', mustTry: '' });
 
             const addRestaurant = () => {
                 if (newRestaurant.name) {
-                    setTripData(prev => ({
-                        ...prev,
-                        restaurants: [...prev.restaurants, { ...newRestaurant, id: Date.now() }]
-                    }));
+                    const restaurantToAdd = { 
+                        ...newRestaurant, 
+                        id: Date.now() 
+                    };
+                    createItem('restaurants', restaurantToAdd);
                     setNewRestaurant({ name: '', cuisine: '', notes: '', mustTry: '' });
                 }
             };
 
-            const deleteRestaurant = (id) => {
-                setTripData(prev => ({
-                    ...prev,
-                    restaurants: prev.restaurants.filter(rest => rest.id !== id)
-                }));
+            const handleDelete = (id) => {
+                deleteItem('restaurants', id);
             };
 
             return (
@@ -708,7 +765,7 @@
                                         )}
                                     </div>
                                     <button
-                                        onClick={() => deleteRestaurant(restaurant.id)}
+                                        onClick={() => handleDelete(restaurant.id)}
                                         className="text-red-600 hover:text-red-800 text-xl ml-2"
                                     >
                                         🗑️
@@ -733,12 +790,13 @@
             );
         }
 
-        function InfoTab({ tripData, setTripData }) {
+        function InfoTab({ tripData, updateItem }) {
             const updateFlights = (field, value) => {
-                setTripData(prev => ({
-                    ...prev,
-                    flights: { ...prev.flights, [field]: value }
-                }));
+                const updatedFlights = { 
+                    ...tripData.flights, 
+                    [field]: value 
+                };
+                updateItem('flights', 'flights_data', updatedFlights);
             };
 
             return (
