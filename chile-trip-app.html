@@ -1,0 +1,786 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#DC2626">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>Nossa Viagem ao Chile 🇨🇱</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="manifest" href="data:application/json;base64,eyJuYW1lIjoiVmlhZ2VtIGFvIENoaWxlIiwic2hvcnRfbmFtZSI6IkNoaWxlIDIwMjUiLCJzdGFydF91cmwiOiIvIiwiZGlzcGxheSI6InN0YW5kYWxvbmUiLCJiYWNrZ3JvdW5kX2NvbG9yIjoiI0ZGRkZGRiIsInRoZW1lX2NvbG9yIjoiI0RDMjYyNiIsImljb25zIjpbeyJzcmMiOiJkYXRhOmltYWdlL3N2Zyt4bWwsJTNDc3ZnIHhtbG5zPSdodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2Zycgdmlld0JveD0nMCAwIDEwMCAxMDAnJTNFJTNDdGV4dCB5PScuOWVtJyBmb250LXNpemU9JzkwJyUzRSVGMCU5RiU4NyVBOCVGMCU5RiU4NyVBQSUzQy90ZXh0JTNFJTNDL3N2ZyUzRSIsInNpemVzIjoiNTEyeDUxMiIsInR5cGUiOiJpbWFnZS9zdmcreG1sIn1dfQ==">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        
+        * {
+            font-family: 'Inter', sans-serif;
+        }
+        
+        .tab-active {
+            background: #DC2626;
+            color: white;
+        }
+        
+        .gradient-bg {
+            background: linear-gradient(135deg, #DC2626 0%, #991B1B 100%);
+        }
+        
+        .glass {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+        }
+        
+        .input-field {
+            transition: all 0.3s ease;
+        }
+        
+        .input-field:focus {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(220, 38, 38, 0.2);
+        }
+
+        .slide-in {
+            animation: slideIn 0.3s ease-out;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .checkbox-custom {
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            border: 2px solid #DC2626;
+            border-radius: 4px;
+            cursor: pointer;
+            position: relative;
+        }
+
+        .checkbox-custom:checked {
+            background: #DC2626;
+        }
+
+        .checkbox-custom:checked::after {
+            content: '✓';
+            position: absolute;
+            color: white;
+            font-size: 14px;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+        }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <div id="app"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+
+        function App() {
+            const [activeTab, setActiveTab] = useState('itinerary');
+            const [tripData, setTripData] = useState({
+                itinerary: [],
+                places: [],
+                budget: [],
+                packing: [],
+                restaurants: [],
+                flights: {
+                    departure: '',
+                    arrival: '',
+                    flightNumber: '',
+                    hotel: ''
+                }
+            });
+
+            // Load data from localStorage
+            useEffect(() => {
+                const saved = localStorage.getItem('chileTrip');
+                if (saved) {
+                    setTripData(JSON.parse(saved));
+                }
+            }, []);
+
+            // Save data to localStorage
+            useEffect(() => {
+                localStorage.setItem('chileTrip', JSON.stringify(tripData));
+            }, [tripData]);
+
+            const tabs = [
+                { id: 'itinerary', label: 'Roteiro', icon: '📅' },
+                { id: 'places', label: 'Lugares', icon: '📍' },
+                { id: 'budget', label: 'Gastos', icon: '💰' },
+                { id: 'packing', label: 'Mala', icon: '🎒' },
+                { id: 'restaurants', label: 'Comer', icon: '🍽️' },
+                { id: 'info', label: 'Info', icon: '✈️' }
+            ];
+
+            return (
+                <div className="min-h-screen pb-20">
+                    {/* Header */}
+                    <div className="gradient-bg text-white p-6 pb-8 rounded-b-3xl shadow-xl">
+                        <div className="text-center">
+                            <h1 className="text-3xl font-bold mb-2">Chile 2025 🇨🇱</h1>
+                            <p className="text-red-100">07 de Junho - Nossa Aventura</p>
+                            <div className="mt-4 bg-white/20 rounded-full px-4 py-2 inline-block">
+                                <span className="text-sm font-semibold">
+                                    {Math.ceil((new Date('2025-06-07') - new Date()) / (1000 * 60 * 60 * 24))} dias para a viagem!
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Content */}
+                    <div className="px-4 -mt-4">
+                        <div className="glass rounded-2xl shadow-xl p-4 slide-in">
+                            {activeTab === 'itinerary' && <ItineraryTab tripData={tripData} setTripData={setTripData} />}
+                            {activeTab === 'places' && <PlacesTab tripData={tripData} setTripData={setTripData} />}
+                            {activeTab === 'budget' && <BudgetTab tripData={tripData} setTripData={setTripData} />}
+                            {activeTab === 'packing' && <PackingTab tripData={tripData} setTripData={setTripData} />}
+                            {activeTab === 'restaurants' && <RestaurantsTab tripData={tripData} setTripData={setTripData} />}
+                            {activeTab === 'info' && <InfoTab tripData={tripData} setTripData={setTripData} />}
+                        </div>
+                    </div>
+
+                    {/* Bottom Navigation */}
+                    <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 px-2 py-2 safe-area-bottom">
+                        <div className="flex justify-around max-w-lg mx-auto">
+                            {tabs.map(tab => (
+                                <button
+                                    key={tab.id}
+                                    onClick={() => setActiveTab(tab.id)}
+                                    className={`flex flex-col items-center px-3 py-2 rounded-xl transition-all ${
+                                        activeTab === tab.id ? 'tab-active' : 'text-gray-600 hover:bg-gray-100'
+                                    }`}
+                                >
+                                    <span className="text-xl mb-1">{tab.icon}</span>
+                                    <span className="text-xs font-medium">{tab.label}</span>
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        function ItineraryTab({ tripData, setTripData }) {
+            const [newDay, setNewDay] = useState({ date: '', title: '', activities: '' });
+
+            const addDay = () => {
+                if (newDay.date && newDay.title) {
+                    setTripData(prev => ({
+                        ...prev,
+                        itinerary: [...prev.itinerary, { ...newDay, id: Date.now() }].sort((a, b) => new Date(a.date) - new Date(b.date))
+                    }));
+                    setNewDay({ date: '', title: '', activities: '' });
+                }
+            };
+
+            const deleteDay = (id) => {
+                setTripData(prev => ({
+                    ...prev,
+                    itinerary: prev.itinerary.filter(day => day.id !== id)
+                }));
+            };
+
+            return (
+                <div className="space-y-4">
+                    <h2 className="text-2xl font-bold text-gray-800 mb-4">Roteiro da Viagem</h2>
+                    
+                    <div className="space-y-3">
+                        <input
+                            type="date"
+                            value={newDay.date}
+                            onChange={(e) => setNewDay({...newDay, date: e.target.value})}
+                            className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl input-field focus:outline-none focus:border-red-600"
+                        />
+                        <input
+                            type="text"
+                            placeholder="Título do dia (ex: Santiago - Centro histórico)"
+                            value={newDay.title}
+                            onChange={(e) => setNewDay({...newDay, title: e.target.value})}
+                            className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl input-field focus:outline-none focus:border-red-600"
+                        />
+                        <textarea
+                            placeholder="Atividades do dia..."
+                            value={newDay.activities}
+                            onChange={(e) => setNewDay({...newDay, activities: e.target.value})}
+                            className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl input-field focus:outline-none focus:border-red-600 h-24 resize-none"
+                        />
+                        <button
+                            onClick={addDay}
+                            className="w-full bg-red-600 text-white py-3 rounded-xl font-semibold hover:bg-red-700 transition-colors"
+                        >
+                            Adicionar Dia
+                        </button>
+                    </div>
+
+                    <div className="space-y-3 mt-6">
+                        {tripData.itinerary.map(day => (
+                            <div key={day.id} className="bg-gradient-to-r from-red-50 to-orange-50 p-4 rounded-xl border-l-4 border-red-600">
+                                <div className="flex justify-between items-start mb-2">
+                                    <div>
+                                        <p className="text-sm text-red-600 font-semibold">
+                                            {new Date(day.date + 'T00:00:00').toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' })}
+                                        </p>
+                                        <h3 className="text-lg font-bold text-gray-800">{day.title}</h3>
+                                    </div>
+                                    <button
+                                        onClick={() => deleteDay(day.id)}
+                                        className="text-red-600 hover:text-red-800 text-xl"
+                                    >
+                                        🗑️
+                                    </button>
+                                </div>
+                                <p className="text-gray-700 whitespace-pre-line">{day.activities}</p>
+                            </div>
+                        ))}
+                        {tripData.itinerary.length === 0 && (
+                            <p className="text-center text-gray-400 py-8">Nenhum dia adicionado ainda</p>
+                        )}
+                    </div>
+                </div>
+            );
+        }
+
+        function PlacesTab({ tripData, setTripData }) {
+            const [newPlace, setNewPlace] = useState({ name: '', address: '', notes: '', category: 'tourist' });
+
+            const categories = {
+                tourist: '🏛️ Turístico',
+                nature: '🏔️ Natureza',
+                shopping: '🛍️ Compras',
+                nightlife: '🌃 Vida Noturna'
+            };
+
+            const addPlace = () => {
+                if (newPlace.name) {
+                    setTripData(prev => ({
+                        ...prev,
+                        places: [...prev.places, { ...newPlace, id: Date.now() }]
+                    }));
+                    setNewPlace({ name: '', address: '', notes: '', category: 'tourist' });
+                }
+            };
+
+            const deletePlace = (id) => {
+                setTripData(prev => ({
+                    ...prev,
+                    places: prev.places.filter(place => place.id !== id)
+                }));
+            };
+
+            return (
+                <div className="space-y-4">
+                    <h2 className="text-2xl font-bold text-gray-800 mb-4">Lugares para Visitar</h2>
+                    
+                    <div className="space-y-3">
+                        <input
+                            type="text"
+                            placeholder="Nome do lugar"
+                            value={newPlace.name}
+                            onChange={(e) => setNewPlace({...newPlace, name: e.target.value})}
+                            className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl input-field focus:outline-none focus:border-red-600"
+                        />
+                        <input
+                            type="text"
+                            placeholder="Endereço (opcional)"
+                            value={newPlace.address}
+                            onChange={(e) => setNewPlace({...newPlace, address: e.target.value})}
+                            className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl input-field focus:outline-none focus:border-red-600"
+                        />
+                        <select
+                            value={newPlace.category}
+                            onChange={(e) => setNewPlace({...newPlace, category: e.target.value})}
+                            className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl input-field focus:outline-none focus:border-red-600"
+                        >
+                            {Object.entries(categories).map(([key, value]) => (
+                                <option key={key} value={key}>{value}</option>
+                            ))}
+                        </select>
+                        <textarea
+                            placeholder="Notas sobre o lugar..."
+                            value={newPlace.notes}
+                            onChange={(e) => setNewPlace({...newPlace, notes: e.target.value})}
+                            className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl input-field focus:outline-none focus:border-red-600 h-20 resize-none"
+                        />
+                        <button
+                            onClick={addPlace}
+                            className="w-full bg-red-600 text-white py-3 rounded-xl font-semibold hover:bg-red-700 transition-colors"
+                        >
+                            Adicionar Lugar
+                        </button>
+                    </div>
+
+                    <div className="space-y-3 mt-6">
+                        {tripData.places.map(place => (
+                            <div key={place.id} className="bg-white p-4 rounded-xl border-2 border-gray-200">
+                                <div className="flex justify-between items-start mb-2">
+                                    <div className="flex-1">
+                                        <div className="flex items-center gap-2 mb-1">
+                                            <span>{categories[place.category].split(' ')[0]}</span>
+                                            <h3 className="text-lg font-bold text-gray-800">{place.name}</h3>
+                                        </div>
+                                        {place.address && (
+                                            <p className="text-sm text-gray-500">📍 {place.address}</p>
+                                        )}
+                                    </div>
+                                    <button
+                                        onClick={() => deletePlace(place.id)}
+                                        className="text-red-600 hover:text-red-800 text-xl ml-2"
+                                    >
+                                        🗑️
+                                    </button>
+                                </div>
+                                {place.notes && (
+                                    <p className="text-gray-700 text-sm mt-2">{place.notes}</p>
+                                )}
+                            </div>
+                        ))}
+                        {tripData.places.length === 0 && (
+                            <p className="text-center text-gray-400 py-8">Nenhum lugar adicionado ainda</p>
+                        )}
+                    </div>
+                </div>
+            );
+        }
+
+        function BudgetTab({ tripData, setTripData }) {
+            const [newExpense, setNewExpense] = useState({ name: '', amount: '', category: 'accommodation' });
+
+            const categories = {
+                accommodation: '🏨 Hospedagem',
+                transport: '✈️ Transporte',
+                food: '🍽️ Alimentação',
+                activities: '🎯 Atividades',
+                shopping: '🛍️ Compras',
+                other: '📌 Outros'
+            };
+
+            const addExpense = () => {
+                if (newExpense.name && newExpense.amount) {
+                    setTripData(prev => ({
+                        ...prev,
+                        budget: [...prev.budget, { ...newExpense, id: Date.now(), amount: parseFloat(newExpense.amount) }]
+                    }));
+                    setNewExpense({ name: '', amount: '', category: 'accommodation' });
+                }
+            };
+
+            const deleteExpense = (id) => {
+                setTripData(prev => ({
+                    ...prev,
+                    budget: prev.budget.filter(exp => exp.id !== id)
+                }));
+            };
+
+            const total = tripData.budget.reduce((sum, exp) => sum + exp.amount, 0);
+            const byCategory = Object.keys(categories).reduce((acc, cat) => {
+                acc[cat] = tripData.budget.filter(exp => exp.category === cat).reduce((sum, exp) => sum + exp.amount, 0);
+                return acc;
+            }, {});
+
+            return (
+                <div className="space-y-4">
+                    <h2 className="text-2xl font-bold text-gray-800 mb-4">Orçamento</h2>
+                    
+                    <div className="bg-gradient-to-r from-green-500 to-emerald-600 text-white p-6 rounded-xl shadow-lg">
+                        <p className="text-sm opacity-90 mb-1">Total Planejado</p>
+                        <p className="text-4xl font-bold">R$ {total.toFixed(2)}</p>
+                    </div>
+
+                    <div className="space-y-3">
+                        <input
+                            type="text"
+                            placeholder="Descrição do gasto"
+                            value={newExpense.name}
+                            onChange={(e) => setNewExpense({...newExpense, name: e.target.value})}
+                            className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl input-field focus:outline-none focus:border-red-600"
+                        />
+                        <input
+                            type="number"
+                            placeholder="Valor (R$)"
+                            value={newExpense.amount}
+                            onChange={(e) => setNewExpense({...newExpense, amount: e.target.value})}
+                            className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl input-field focus:outline-none focus:border-red-600"
+                        />
+                        <select
+                            value={newExpense.category}
+                            onChange={(e) => setNewExpense({...newExpense, category: e.target.value})}
+                            className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl input-field focus:outline-none focus:border-red-600"
+                        >
+                            {Object.entries(categories).map(([key, value]) => (
+                                <option key={key} value={key}>{value}</option>
+                            ))}
+                        </select>
+                        <button
+                            onClick={addExpense}
+                            className="w-full bg-red-600 text-white py-3 rounded-xl font-semibold hover:bg-red-700 transition-colors"
+                        >
+                            Adicionar Gasto
+                        </button>
+                    </div>
+
+                    <div className="space-y-2 mt-6">
+                        <h3 className="font-semibold text-gray-700 mb-2">Por Categoria:</h3>
+                        {Object.entries(categories).map(([key, label]) => (
+                            byCategory[key] > 0 && (
+                                <div key={key} className="flex justify-between items-center bg-gray-50 p-3 rounded-lg">
+                                    <span className="text-gray-700">{label}</span>
+                                    <span className="font-semibold text-gray-800">R$ {byCategory[key].toFixed(2)}</span>
+                                </div>
+                            )
+                        ))}
+                    </div>
+
+                    <div className="space-y-2 mt-6">
+                        <h3 className="font-semibold text-gray-700 mb-2">Detalhes:</h3>
+                        {tripData.budget.map(expense => (
+                            <div key={expense.id} className="flex justify-between items-center bg-white p-3 rounded-lg border-2 border-gray-200">
+                                <div>
+                                    <p className="font-medium text-gray-800">{expense.name}</p>
+                                    <p className="text-xs text-gray-500">{categories[expense.category]}</p>
+                                </div>
+                                <div className="flex items-center gap-3">
+                                    <span className="font-bold text-gray-800">R$ {expense.amount.toFixed(2)}</span>
+                                    <button
+                                        onClick={() => deleteExpense(expense.id)}
+                                        className="text-red-600 hover:text-red-800"
+                                    >
+                                        🗑️
+                                    </button>
+                                </div>
+                            </div>
+                        ))}
+                        {tripData.budget.length === 0 && (
+                            <p className="text-center text-gray-400 py-8">Nenhum gasto adicionado ainda</p>
+                        )}
+                    </div>
+                </div>
+            );
+        }
+
+        function PackingTab({ tripData, setTripData }) {
+            const [newItem, setNewItem] = useState('');
+
+            const addItem = () => {
+                if (newItem.trim()) {
+                    setTripData(prev => ({
+                        ...prev,
+                        packing: [...prev.packing, { name: newItem, packed: false, id: Date.now() }]
+                    }));
+                    setNewItem('');
+                }
+            };
+
+            const togglePacked = (id) => {
+                setTripData(prev => ({
+                    ...prev,
+                    packing: prev.packing.map(item => 
+                        item.id === id ? { ...item, packed: !item.packed } : item
+                    )
+                }));
+            };
+
+            const deleteItem = (id) => {
+                setTripData(prev => ({
+                    ...prev,
+                    packing: prev.packing.filter(item => item.id !== id)
+                }));
+            };
+
+            const packed = tripData.packing.filter(item => item.packed).length;
+            const total = tripData.packing.length;
+            const percentage = total > 0 ? Math.round((packed / total) * 100) : 0;
+
+            return (
+                <div className="space-y-4">
+                    <h2 className="text-2xl font-bold text-gray-800 mb-4">Lista de Mala</h2>
+                    
+                    {total > 0 && (
+                        <div className="bg-blue-50 p-4 rounded-xl border-2 border-blue-200">
+                            <div className="flex justify-between mb-2">
+                                <span className="text-sm font-semibold text-blue-900">Progresso</span>
+                                <span className="text-sm font-semibold text-blue-900">{packed}/{total} items</span>
+                            </div>
+                            <div className="w-full bg-blue-200 rounded-full h-3">
+                                <div 
+                                    className="bg-blue-600 h-3 rounded-full transition-all duration-300"
+                                    style={{ width: `${percentage}%` }}
+                                />
+                            </div>
+                            <p className="text-center text-blue-600 font-bold mt-2">{percentage}%</p>
+                        </div>
+                    )}
+
+                    <div className="flex gap-2">
+                        <input
+                            type="text"
+                            placeholder="Item para levar..."
+                            value={newItem}
+                            onChange={(e) => setNewItem(e.target.value)}
+                            onKeyPress={(e) => e.key === 'Enter' && addItem()}
+                            className="flex-1 px-4 py-3 border-2 border-gray-200 rounded-xl input-field focus:outline-none focus:border-red-600"
+                        />
+                        <button
+                            onClick={addItem}
+                            className="bg-red-600 text-white px-6 py-3 rounded-xl font-semibold hover:bg-red-700 transition-colors"
+                        >
+                            +
+                        </button>
+                    </div>
+
+                    <div className="space-y-2 mt-6">
+                        {tripData.packing.map(item => (
+                            <div 
+                                key={item.id} 
+                                className={`flex items-center gap-3 p-3 rounded-xl border-2 transition-all ${
+                                    item.packed 
+                                        ? 'bg-green-50 border-green-200' 
+                                        : 'bg-white border-gray-200'
+                                }`}
+                            >
+                                <input
+                                    type="checkbox"
+                                    checked={item.packed}
+                                    onChange={() => togglePacked(item.id)}
+                                    className="checkbox-custom"
+                                />
+                                <span className={`flex-1 ${item.packed ? 'line-through text-gray-400' : 'text-gray-800'}`}>
+                                    {item.name}
+                                </span>
+                                <button
+                                    onClick={() => deleteItem(item.id)}
+                                    className="text-red-600 hover:text-red-800"
+                                >
+                                    🗑️
+                                </button>
+                            </div>
+                        ))}
+                        {tripData.packing.length === 0 && (
+                            <p className="text-center text-gray-400 py-8">Nenhum item adicionado ainda</p>
+                        )}
+                    </div>
+                </div>
+            );
+        }
+
+        function RestaurantsTab({ tripData, setTripData }) {
+            const [newRestaurant, setNewRestaurant] = useState({ name: '', cuisine: '', notes: '', mustTry: '' });
+
+            const addRestaurant = () => {
+                if (newRestaurant.name) {
+                    setTripData(prev => ({
+                        ...prev,
+                        restaurants: [...prev.restaurants, { ...newRestaurant, id: Date.now() }]
+                    }));
+                    setNewRestaurant({ name: '', cuisine: '', notes: '', mustTry: '' });
+                }
+            };
+
+            const deleteRestaurant = (id) => {
+                setTripData(prev => ({
+                    ...prev,
+                    restaurants: prev.restaurants.filter(rest => rest.id !== id)
+                }));
+            };
+
+            return (
+                <div className="space-y-4">
+                    <h2 className="text-2xl font-bold text-gray-800 mb-4">Restaurantes</h2>
+                    
+                    <div className="space-y-3">
+                        <input
+                            type="text"
+                            placeholder="Nome do restaurante"
+                            value={newRestaurant.name}
+                            onChange={(e) => setNewRestaurant({...newRestaurant, name: e.target.value})}
+                            className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl input-field focus:outline-none focus:border-red-600"
+                        />
+                        <input
+                            type="text"
+                            placeholder="Tipo de culinária (ex: Chilena, Seafood)"
+                            value={newRestaurant.cuisine}
+                            onChange={(e) => setNewRestaurant({...newRestaurant, cuisine: e.target.value})}
+                            className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl input-field focus:outline-none focus:border-red-600"
+                        />
+                        <input
+                            type="text"
+                            placeholder="Prato para experimentar"
+                            value={newRestaurant.mustTry}
+                            onChange={(e) => setNewRestaurant({...newRestaurant, mustTry: e.target.value})}
+                            className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl input-field focus:outline-none focus:border-red-600"
+                        />
+                        <textarea
+                            placeholder="Notas sobre o restaurante..."
+                            value={newRestaurant.notes}
+                            onChange={(e) => setNewRestaurant({...newRestaurant, notes: e.target.value})}
+                            className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl input-field focus:outline-none focus:border-red-600 h-20 resize-none"
+                        />
+                        <button
+                            onClick={addRestaurant}
+                            className="w-full bg-red-600 text-white py-3 rounded-xl font-semibold hover:bg-red-700 transition-colors"
+                        >
+                            Adicionar Restaurante
+                        </button>
+                    </div>
+
+                    <div className="space-y-3 mt-6">
+                        {tripData.restaurants.map(restaurant => (
+                            <div key={restaurant.id} className="bg-gradient-to-r from-orange-50 to-red-50 p-4 rounded-xl border-l-4 border-orange-500">
+                                <div className="flex justify-between items-start mb-2">
+                                    <div className="flex-1">
+                                        <h3 className="text-lg font-bold text-gray-800">{restaurant.name}</h3>
+                                        {restaurant.cuisine && (
+                                            <p className="text-sm text-orange-600 font-medium">{restaurant.cuisine}</p>
+                                        )}
+                                    </div>
+                                    <button
+                                        onClick={() => deleteRestaurant(restaurant.id)}
+                                        className="text-red-600 hover:text-red-800 text-xl ml-2"
+                                    >
+                                        🗑️
+                                    </button>
+                                </div>
+                                {restaurant.mustTry && (
+                                    <div className="bg-white/50 px-3 py-2 rounded-lg mt-2">
+                                        <p className="text-xs text-gray-600 font-semibold mb-1">🌟 Experimentar:</p>
+                                        <p className="text-sm text-gray-800">{restaurant.mustTry}</p>
+                                    </div>
+                                )}
+                                {restaurant.notes && (
+                                    <p className="text-gray-700 text-sm mt-2">{restaurant.notes}</p>
+                                )}
+                            </div>
+                        ))}
+                        {tripData.restaurants.length === 0 && (
+                            <p className="text-center text-gray-400 py-8">Nenhum restaurante adicionado ainda</p>
+                        )}
+                    </div>
+                </div>
+            );
+        }
+
+        function InfoTab({ tripData, setTripData }) {
+            const updateFlights = (field, value) => {
+                setTripData(prev => ({
+                    ...prev,
+                    flights: { ...prev.flights, [field]: value }
+                }));
+            };
+
+            return (
+                <div className="space-y-4">
+                    <h2 className="text-2xl font-bold text-gray-800 mb-4">Informações da Viagem</h2>
+                    
+                    <div className="bg-blue-50 p-4 rounded-xl border-2 border-blue-200">
+                        <h3 className="font-bold text-blue-900 mb-3 flex items-center gap-2">
+                            ✈️ Voo e Hospedagem
+                        </h3>
+                        <div className="space-y-3">
+                            <div>
+                                <label className="text-sm text-gray-600 block mb-1">Voo de Ida</label>
+                                <input
+                                    type="text"
+                                    placeholder="Data e horário"
+                                    value={tripData.flights.departure}
+                                    onChange={(e) => updateFlights('departure', e.target.value)}
+                                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-blue-600"
+                                />
+                            </div>
+                            <div>
+                                <label className="text-sm text-gray-600 block mb-1">Voo de Volta</label>
+                                <input
+                                    type="text"
+                                    placeholder="Data e horário"
+                                    value={tripData.flights.arrival}
+                                    onChange={(e) => updateFlights('arrival', e.target.value)}
+                                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-blue-600"
+                                />
+                            </div>
+                            <div>
+                                <label className="text-sm text-gray-600 block mb-1">Número do Voo</label>
+                                <input
+                                    type="text"
+                                    placeholder="Ex: LA4500"
+                                    value={tripData.flights.flightNumber}
+                                    onChange={(e) => updateFlights('flightNumber', e.target.value)}
+                                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-blue-600"
+                                />
+                            </div>
+                            <div>
+                                <label className="text-sm text-gray-600 block mb-1">Hotel</label>
+                                <input
+                                    type="text"
+                                    placeholder="Nome e endereço"
+                                    value={tripData.flights.hotel}
+                                    onChange={(e) => updateFlights('hotel', e.target.value)}
+                                    className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg focus:outline-none focus:border-blue-600"
+                                />
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="bg-yellow-50 p-4 rounded-xl border-2 border-yellow-200">
+                        <h3 className="font-bold text-yellow-900 mb-3 flex items-center gap-2">
+                            💡 Dicas Importantes
+                        </h3>
+                        <ul className="space-y-2 text-sm text-gray-700">
+                            <li className="flex items-start gap-2">
+                                <span>🔌</span>
+                                <span>Chile usa tomadas tipo C e L (220V) - levar adaptador!</span>
+                            </li>
+                            <li className="flex items-start gap-2">
+                                <span>💰</span>
+                                <span>Moeda: Peso Chileno (CLP)</span>
+                            </li>
+                            <li className="flex items-start gap-2">
+                                <span>🌡️</span>
+                                <span>Junho = Inverno no Chile (temperatura 3-15°C)</span>
+                            </li>
+                            <li className="flex items-start gap-2">
+                                <span>📱</span>
+                                <span>Comprar chip local ou ativar roaming internacional</span>
+                            </li>
+                            <li className="flex items-start gap-2">
+                                <span>🆔</span>
+                                <span>Levar passaporte válido</span>
+                            </li>
+                        </ul>
+                    </div>
+
+                    <div className="bg-purple-50 p-4 rounded-xl border-2 border-purple-200">
+                        <h3 className="font-bold text-purple-900 mb-3 flex items-center gap-2">
+                            📝 Checklist Pré-Viagem
+                        </h3>
+                        <ul className="space-y-2 text-sm text-gray-700">
+                            <li>✓ Passaporte válido</li>
+                            <li>✓ Seguro viagem</li>
+                            <li>✓ Cartões de crédito avisados</li>
+                            <li>✓ Reservas de hotel confirmadas</li>
+                            <li>✓ Passagens aéreas impressas/digitais</li>
+                            <li>✓ Medicamentos necessários</li>
+                            <li>✓ App de tradução baixado</li>
+                        </ul>
+                    </div>
+                </div>
+            );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('app'));
+        root.render(<App />);
+    </script>
+
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+</body>
+</html>
